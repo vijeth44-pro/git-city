@@ -18,6 +18,7 @@ import type { RaidExecuteResponse } from "@/lib/raid";
 import FounderSpire from "./FounderSpire";
 import WhiteRabbit from "./WhiteRabbit";
 import CelebrationEffect from "./CelebrationEffect";
+import WallpaperParallax from "./WallpaperParallax";
 
 // ─── Theme Definitions ───────────────────────────────────────
 
@@ -1808,6 +1809,38 @@ function OrbitScene({ buildings, focusedBuilding, focusedBuildingB }: { building
   );
 }
 
+// ─── Wallpaper Orbit (no interaction, auto-rotate + parallax) ─
+
+function WallpaperOrbitScene({ speed }: { speed: number }) {
+  const controlsRef = useRef<any>(null);
+  const { camera } = useThree();
+
+  useEffect(() => {
+    camera.position.set(800, 700, 1000);
+    camera.lookAt(TARGET_X, TARGET_Y, TARGET_Z);
+  }, [camera]);
+
+  return (
+    <>
+      <OrbitControls
+        ref={controlsRef}
+        enableDamping
+        dampingFactor={0.06}
+        minDistance={40}
+        maxDistance={2500}
+        maxPolarAngle={Math.PI / 2.1}
+        target={[TARGET_X, TARGET_Y, TARGET_Z]}
+        autoRotate
+        autoRotateSpeed={speed}
+        enablePan={false}
+        enableZoom={false}
+        enableRotate={false}
+      />
+      <WallpaperParallax controlsRef={controlsRef} baseTarget={[TARGET_X, TARGET_Y, TARGET_Z]} />
+    </>
+  );
+}
+
 // ─── Main Canvas ─────────────────────────────────────────────
 
 interface Props {
@@ -1850,12 +1883,14 @@ interface Props {
   ghostPreviewLogin?: string | null;
   holdRise?: boolean;
   celebrationActive?: boolean;
+  wallpaperMode?: boolean;
+  wallpaperSpeed?: number;
 }
 
 // Plaza indices for rabbit sightings (progressively further from center)
 const RABBIT_PLAZA_INDICES = [1, 2, 4, 7, 10]; // plazas[1]=slot3, [2]=slot7, [4]=slot18, [7]=slot42, [10]=slot75
 
-export default function CityCanvas({ buildings, plazas, decorations, river, bridges, flyMode, flyVehicle, onExitFly, onCollect, themeIndex, onHud, onPause, focusedBuilding, focusedBuildingB, accentColor, onClearFocus, onBuildingClick, onFocusInfo, flyPauseSignal, flyHasOverlay, skyAds, onAdClick, onAdViewed, introMode, onIntroEnd, raidPhase, raidData, raidAttacker, raidDefender, onRaidPhaseComplete, onLandmarkClick, rabbitSighting, onRabbitCaught, rabbitCinematic, onRabbitCinematicEnd, rabbitCinematicTarget, ghostPreviewLogin, holdRise, celebrationActive }: Props) {
+export default function CityCanvas({ buildings, plazas, decorations, river, bridges, flyMode, flyVehicle, onExitFly, onCollect, themeIndex, onHud, onPause, focusedBuilding, focusedBuildingB, accentColor, onClearFocus, onBuildingClick, onFocusInfo, flyPauseSignal, flyHasOverlay, skyAds, onAdClick, onAdViewed, introMode, onIntroEnd, raidPhase, raidData, raidAttacker, raidDefender, onRaidPhaseComplete, onLandmarkClick, rabbitSighting, onRabbitCaught, rabbitCinematic, onRabbitCinematicEnd, rabbitCinematicTarget, ghostPreviewLogin, holdRise, celebrationActive, wallpaperMode, wallpaperSpeed }: Props) {
   const t = THEMES[themeIndex] ?? THEMES[0];
   const showPerf = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("perf");
   const [dpr, setDpr] = useState(1);
@@ -1902,24 +1937,30 @@ export default function CityCanvas({ buildings, plazas, decorations, river, brid
         />
       )}
 
-      {!introMode && !rabbitCinematic && !flyMode && (!raidPhase || raidPhase === "idle" || raidPhase === "preview") && (
-        <OrbitScene buildings={buildings} focusedBuilding={focusedBuilding ?? null} focusedBuildingB={focusedBuildingB} />
-      )}
-
-      {raidPhase && raidPhase !== "idle" && raidPhase !== "preview" && (
-        <RaidSequence3D
-          phase={raidPhase}
-          attacker={raidAttacker ?? null}
-          defender={raidDefender ?? null}
-          raidData={raidData ?? null}
-          onPhaseComplete={onRaidPhaseComplete ?? (() => {})}
-        />
-      )}
-
-      {!introMode && flyMode && (
+      {wallpaperMode ? (
+        <WallpaperOrbitScene speed={wallpaperSpeed ?? 0.08} />
+      ) : (
         <>
-          <AirplaneFlight onExit={onExitFly} onHud={onHud ?? (() => {})} onPause={onPause ?? (() => {})} pauseSignal={flyPauseSignal} hasOverlay={flyHasOverlay} vehicleType={flyVehicle} posRef={flyPosRef} />
-          <SkyCollectibles playerPosRef={flyPosRef} accentColor={accentColor ?? "#6090e0"} onCollect={onCollect ?? (() => {})} cityRadius={cityRadius} />
+          {!introMode && !rabbitCinematic && !flyMode && (!raidPhase || raidPhase === "idle" || raidPhase === "preview") && (
+            <OrbitScene buildings={buildings} focusedBuilding={focusedBuilding ?? null} focusedBuildingB={focusedBuildingB} />
+          )}
+
+          {raidPhase && raidPhase !== "idle" && raidPhase !== "preview" && (
+            <RaidSequence3D
+              phase={raidPhase}
+              attacker={raidAttacker ?? null}
+              defender={raidDefender ?? null}
+              raidData={raidData ?? null}
+              onPhaseComplete={onRaidPhaseComplete ?? (() => {})}
+            />
+          )}
+
+          {!introMode && flyMode && (
+            <>
+              <AirplaneFlight onExit={onExitFly} onHud={onHud ?? (() => {})} onPause={onPause ?? (() => {})} pauseSignal={flyPauseSignal} hasOverlay={flyHasOverlay} vehicleType={flyVehicle} posRef={flyPosRef} />
+              <SkyCollectibles playerPosRef={flyPosRef} accentColor={accentColor ?? "#6090e0"} onCollect={onCollect ?? (() => {})} cityRadius={cityRadius} />
+            </>
+          )}
         </>
       )}
 
@@ -1927,9 +1968,9 @@ export default function CityCanvas({ buildings, plazas, decorations, river, brid
 
       <FounderSpire onClick={onLandmarkClick ?? (() => {})} />
 
-      {celebrationActive && <CelebrationEffect cityRadius={cityRadius} />}
+      {!wallpaperMode && celebrationActive && <CelebrationEffect cityRadius={cityRadius} />}
 
-      {rabbitSighting && rabbitSighting >= 1 && rabbitSighting <= 5 && (() => {
+      {!wallpaperMode && rabbitSighting && rabbitSighting >= 1 && rabbitSighting <= 5 && (() => {
         const plazaIdx = RABBIT_PLAZA_INDICES[rabbitSighting - 1];
         const plaza = plazas[plazaIdx];
         if (!plaza) return null;
@@ -1972,7 +2013,7 @@ export default function CityCanvas({ buildings, plazas, decorations, river, brid
 
       <InstancedDecorations items={decorations} roadMarkingColor={t.roadMarkingColor} sidewalkColor={t.sidewalkColor} />
 
-      {skyAds && skyAds.length > 0 && (
+      {!wallpaperMode && skyAds && skyAds.length > 0 && (
         <>
           <SkyAds ads={skyAds} cityRadius={cityRadius} flyMode={flyMode} onAdClick={onAdClick} onAdViewed={onAdViewed} />
           <BuildingAds
